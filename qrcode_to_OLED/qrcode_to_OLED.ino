@@ -3,6 +3,7 @@
 #include <Adafruit_SSD1306.h>
 #include <qrcode.h>
 
+
 // OLED display dimensions
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
