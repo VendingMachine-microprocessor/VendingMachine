@@ -1,1 +1,2 @@
 * text=auto
+*.ino text eol=lf
