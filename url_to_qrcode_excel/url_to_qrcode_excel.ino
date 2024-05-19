@@ -10,7 +10,7 @@ void setup() {
     // Create the QR code
     QRCode qrcode;
     uint8_t qrcodeData[qrcode_getBufferSize(3)];
-    qrcode_initText(&qrcode, qrcodeData, 3, 0, "https://kimjiwon139.github.io/vendingmachineHomepage/");
+    qrcode_initText(&qrcode, qrcodeData, 3, 0, "http://192.168.4.1");
 
   
 
