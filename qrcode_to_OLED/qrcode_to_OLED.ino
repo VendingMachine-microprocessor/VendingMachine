@@ -17,7 +17,7 @@ void setup() {
   display.clearDisplay();
 
   // Display the QR code for URL
-  generateQRCode("https://kimjiwon139.github.io/vendingmachineHomepage/");
+  generateQRCode("http://192.168.4.1");
 }
 
 void loop() {
