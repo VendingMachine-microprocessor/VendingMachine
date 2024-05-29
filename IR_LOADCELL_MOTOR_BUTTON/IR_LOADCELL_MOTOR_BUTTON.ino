@@ -69,6 +69,17 @@ void setup() {
 }
 
 void loop() {
+  // Uno R4로부터 cost 값을 수신하는 코드
+  if (Serial1.available()) {
+    int receivedCost = Serial1.parseInt();
+    if (receivedCost != 0) { // 0이 아닌 값만 수신하여 cost를 업데이트
+      cost = receivedCost; // Uno R4에서 받은 cost 값을 설정
+    }
+    Serial.print("Received cost: ");
+    Serial.println(cost);
+  }
+
+
   int irVal = PINE & (1<<PORTE_IRSENSOR);  // 센서값 읽어옴
 
   if ((irVal == 0) & (previrVal != 0)) {
