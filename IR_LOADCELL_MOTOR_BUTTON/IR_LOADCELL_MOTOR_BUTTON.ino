@@ -42,6 +42,7 @@ void setup() {
   // PULSE_PIN을 출력으로 설정
   DDRA |= (1 << PULSE_PIN0) | (1 << PULSE_PIN1) | (1 << PULSE_PIN2) | (1 << PULSE_PIN3);
 
+  Serial2.begin(9600); //R4와 통신
   Serial.begin(38400);
   Serial.println("HX711 Demo");
 
