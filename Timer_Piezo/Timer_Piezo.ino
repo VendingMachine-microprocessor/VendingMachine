@@ -1,4 +1,3 @@
-#define EXT_SWITCH 0x04
 #define OC2B       0x40
 #define NUM_FREQ   14
 
@@ -21,12 +20,11 @@ const float frequencies[NUM_FREQ] = {
 
 uint8_t freq_count = 0;
 
-ISR(INT0_vect){
+void playMelody() {
   for(freq_count = 0; freq_count < NUM_FREQ; freq_count++){
     float freq_target = frequencies[freq_count];
     
     OCR2A = F_CPU / 256 / freq_target - 1;
-
     OCR2B = OCR2A / 2;
 
     TCCR2A |= (1 << COM2B1); // Enable OC2B output
@@ -37,8 +35,7 @@ ISR(INT0_vect){
       }
     }
 
-  // OC2B output disable -> no piezo sound
-    TCCR2A &= ~(1 << COM2B1);
+    TCCR2A &= ~(1 << COM2B1); // OC2B output disable -> no piezo sound
 
     for(uint16_t j = 0; j < 5; j++){ // 한 음 출력된 소리 끄고 다음 잠깐 딜레이
       for(uint16_t k = 0; k < 64000; k++){
@@ -46,44 +43,40 @@ ISR(INT0_vect){
       }
     }
   }
-  TCCR2A &= ~(1 << COM2B1);   // 모든 주파수를 출력한 후 OC2B 출력을 비활성화
+  TCCR2A &= ~(1 << COM2B1); // 모든 주파수를 출력한 후 OC2B 출력을 비활성화
+}
+
+ISR(INT0_vect) {
+  playMelody();
 }
 
 void loop(){
 }
 
 void setup() {
-
   // Disable global interrupt
   cli();
 
-  // Switch
-  DDRD &= ~EXT_SWITCH;
-
   // Register settings for INT0 interrupt
-  EICRA |= 0x03;
-  EIMSK |= 0x01;
+  EICRA |= 0x03;  // Rising edge triggers interrupt
+  EIMSK |= 0x01;  // Enable INT0
 
   // Setting output port
   DDRD |= OC2B;
 
-  // Common settings
-  TCCR2A |= (1 << WGM21) | (1 << WGM20);
+  // Timer/Counter2 settings
+  TCCR2A |= (1 << WGM21) | (1 << WGM20); // Fast PWM mode
   TCCR2B |= (1 << WGM22);
-  TCCR2B |= (1 << CS22) | (1 << CS21) | (0 << CS20);
+  TCCR2B |= (1 << CS22) | (1 << CS21) | (0 << CS20); // Prescaler: 256
 
   // OC2B output disable -> no piezo sound before interrupt
   TCCR2A &= ~(1 << COM2B1); 
 
   // Calculate OCRA (Frequency)
   float freq_target = frequencies[freq_count];
-
-  // From 16MHz / 256 (prescaler) / (OCR2A + 1) = freq_target
   OCR2A = F_CPU / 256 / freq_target - 1;
-
-  // output duty cycle: 50%
   OCR2B = OCR2A / 2;
 
-  //Enable global interrupt
+  // Enable global interrupt
   sei();
 }
