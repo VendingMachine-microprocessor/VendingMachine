@@ -70,8 +70,8 @@ void setup() {
 
 void loop() {
   // Uno R4로부터 cost 값을 수신하는 코드
-  if (Serial1.available()) {
-    int receivedCost = Serial1.parseInt();
+  if (Serial2.available()) {
+    int receivedCost = Serial2.parseInt();
     if (receivedCost != 0) { // 0이 아닌 값만 수신하여 cost를 업데이트
       cost = receivedCost; // Uno R4에서 받은 cost 값을 설정
     }
