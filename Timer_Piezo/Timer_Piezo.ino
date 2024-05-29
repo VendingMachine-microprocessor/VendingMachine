@@ -1,5 +1,5 @@
 #define EXT_SWITCH 0x04
-#define OC2B       0x08
+#define OC2B       0x40
 #define NUM_FREQ   14
 
 const float frequencies[NUM_FREQ] = {
