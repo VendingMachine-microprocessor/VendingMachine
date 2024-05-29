@@ -25,7 +25,7 @@ WiFiServer server(80);
 
 void setup() {
   Serial.begin(9600); // initialize serial communication
-
+  Serial1.begin(9600); // Mega와의 통신을 위해 추가
   
   // check for the WiFi module:
   if (WiFi.status() == WL_NO_MODULE) {
@@ -33,11 +33,6 @@ void setup() {
     // don't continue
     while (true);
   }
-  
-  /* ------------------------------------------------------------ */
-  // Option 1: Connect to existing WiFi network
-  // You can change this if you'd like to use another IP address
-  //WiFi.config(IPAddress(192,168,56,101));
 
   // print the network name (SSID);
   Serial.print("Creating access point named: ");
@@ -51,21 +46,6 @@ void setup() {
     // don't continue
     while (true);
   }
-  /* ------------------------------------------------------------ */
-
-  /* ------------------------------------------------------------ */
-  // // Option 2: Connect to existing WiFi network  
-  // // attempt to connect to existing WiFi network:
-  // while (status != WL_CONNECTED) {
-  //   Serial.println("Network named: ircvlabCAD");    
-
-  //   // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-  //   status = WiFi.begin("ircvlabCAD", "ircvlab504");    
-    
-  //   // wait 10 seconds for connection:
-  //   delay(10000);
-  // }
-  /* ------------------------------------------------------------ */
 
   server.begin(); // start the web server on port 80
   printWifiStatus(); // you're connected now, so print out the status
@@ -76,6 +56,7 @@ void loop() {
   if (status != WiFi.status()) {
     // it has changed update the variable
     status = WiFi.status();
+
     if (status == WL_AP_CONNECTED) {
       // a device has connected to the AP
       Serial.println("Device connected to AP");
@@ -114,24 +95,33 @@ void webServer() {
 
 
             if (header.indexOf("GET /500") >= 0) {
-              cost = 1;
+              cost = 500;
               Serial.println("Cost 값을 1로 설정 (500 Won)");
+              Serial.println(cost);
+              Serial1.println(cost); //Mega 전송
             } else if (header.indexOf("GET /1000") >= 0) {
-              cost = 2;
+              cost = 1000;              
               Serial.println("Cost 값을 2로 설정 (1000 Won)");
+              Serial.println(cost);
+              Serial1.println(cost); //Mega 전송
             }
 
 
             // 간단한 HTML 응답 페이지
+            //head와 style
             client.println("<!DOCTYPE html><html>");
             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
             client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
             client.println("button { padding: 15px 30px; font-size: 20px; margin: 10px; }");
-            client.println("</style></head>");
+            client.println("</style></head>"); //head와 style
+
+            //body 부분
             client.println("<body><h1>Select Product</h1>");
+
+            //button 추가
             client.println("<button onclick=\"location.href='/500'\">500 Won</button>");
             client.println("<button onclick=\"location.href='/1000'\">1000 Won</button>");
-            client.println("</body></html>");
+            client.println("</body></html>"); //body 끝
 
             client.println(); // HTTP 응답 끝
             break;
