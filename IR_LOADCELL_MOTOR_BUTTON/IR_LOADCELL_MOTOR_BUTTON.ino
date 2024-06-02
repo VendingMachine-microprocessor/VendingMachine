@@ -9,6 +9,8 @@ void set_scale(float);
 void tare(unsigned char);
 void set_offset(long);
 void playMelody(void);
+void USART_init(void);
+int Receive_from_R4(int);
 
 #define LOADCELL_DOUT_PIN  0 // DOUT은 PORTB의 0번핀
 #define LOADCELL_SCK_PIN 1  // SCK은 PORTB의 1번핀
@@ -28,6 +30,9 @@ void playMelody(void);
 
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
+
+#define FOSC 16000000
+#define BAUD 9600
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -62,7 +67,7 @@ void setup() {
   // PULSE_PIN을 출력으로 설정
   DDRA |= (1 << PULSE_PIN0) | (1 << PULSE_PIN1) | (1 << PULSE_PIN2) | (1 << PULSE_PIN3);
 
-  Serial2.begin(9600); //R4와 통신
+  USART_init(); //R4와 통신
   Serial.begin(38400);
   Serial.println("HX711 Demo");
 
@@ -112,14 +117,16 @@ void setup() {
 }
 
 void loop() {
-  // Uno R4로부터 cost 값을 수신하는 코드
-  if (Serial2.available()) {
-    int receivedCost = Serial2.parseInt();
+  // R4로부터 cost 값을 수신
+  if (UCSR2A & (1 << RXC2)) { // 데이터가 준비되었을 때만 읽기
+    int receivedCost = Receive_from_R4();
+    Serial.print("Received cost value: ");
+    Serial.println(receivedCost); // 수신된 값을 출력
     if (receivedCost != 0) { // 0이 아닌 값만 수신하여 cost를 업데이트
-      cost = receivedCost; // Uno R4에서 받은 cost 값을 설정
+      cost = receivedCost; // R4에서 받은 cost 값을 설정
+      Serial.print("Cost updated to: ");
+      Serial.println(cost);
     }
-    Serial.print("Received cost: ");
-    Serial.println(cost);
   }
 
 
@@ -359,55 +366,7 @@ ISR(INT3_vect){
   }
 }
 
-// ISR(INT3_vect){
-//   if (cost == 1000) {
-//     cost = 500;
-//     change = 1;
 
-  
-//     // 반시계 방향으로 360도 회전 (2ms 펄스)
-//     for (int i = 0; i < 380 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
-//       PORTA |= (1 << PULSE_PIN3);
-//       delayMicroseconds(2000); // 2ms 펄스
-//       PORTA &= ~(1 << PULSE_PIN3);
-//       delayMicroseconds(18000); // 18ms 대기 (총 주기 20ms)
-//     }
-
-//     // 서보 모터를 멈추기 위한 중립 펄스 (예: 1.5ms)
-//     for (int i = 0; i < 50; i++) { // 50 * 20ms = 1초 동안 중립 상태 유지
-//       PORTA |= (1 << PULSE_PIN3);
-//       delayMicroseconds(1500); // 1.5ms 펄스
-//       PORTA &= ~(1 << PULSE_PIN3);
-//       delayMicroseconds(18500); // 18.5ms 대기 (총 주기 20ms)
-//     }
-//     EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1)); // INT0 ~ INT1 INTERRUPT DISABLE 
-//   }
-
-//   if (change != 1) {
-//     if (cost == 500) {
-//       // 반시계 방향으로 360도 회전 (2ms 펄스)
-//       for (int i = 0; i < 380 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
-//         PORTA |= (1 << PULSE_PIN3);
-//         delayMicroseconds(2000); // 2ms 펄스
-//         PORTA &= ~(1 << PULSE_PIN3);
-//         delayMicroseconds(18000); // 18ms 대기 (총 주기 20ms)
-//       }
-
-//       // 서보 모터를 멈추기 위한 중립 펄스 (예: 1.5ms)
-//       for (int i = 0; i < 50; i++) { // 50 * 20ms = 1초 동안 중립 상태 유지
-//         PORTA |= (1 << PULSE_PIN3);
-//         delayMicroseconds(1500); // 1.5ms 펄스
-//         PORTA &= ~(1 << PULSE_PIN3);
-//         delayMicroseconds(18500); // 18.5ms 대기 (총 주기 20ms)
-//       }
-//       //피에조 부저
-//       interruptTriggered = true;
-//       Number = 0;
-//       cost = 0;
-//     }
-//   }
-//   EIMSK &= ~((1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT2 ~ INT3 INTERRUPT DISABLE
-// }
 
 // pinMode 설정
 void digital_pin_init(void) {
@@ -520,4 +479,25 @@ void playMelody() {
     }
   }
   TCCR2A &= ~(1 << COM2B1); // 모든 주파수를 출력한 후 OC2B 출력을 비활성화
+}
+
+void USART_init(){
+  uint16_t ubrr = FOSC / 16 / BAUD -1;
+  UBRR2H = (unsigned char)(ubrr >> 8);
+  UBRR2L = (unsigned char)ubrr;
+
+  UCSR2B |= (1 << RXEN2) | (1 << TXEN2);
+  UCSR2C |= (1 << USBS2);
+  UCSR2C |= (1 << UCSZ21) | (1 << UCSZ20);
+}
+
+int Receive_from_R4() {
+  if (!(UCSR2A & (1 << RXC2))) {
+    Serial.println("No data to receive from R4");
+    return 0; // 데이터가 없으면 0을 반환
+  }
+  int highByte = UDR2; // 상위 바이트 수신
+  while (!(UCSR2A & (1 << RXC2))); // 데이터가 수신될 때까지 대기
+  int lowByte = UDR2; // 하위 바이트 수신
+  return (highByte << 8) | lowByte; // 상위 바이트와 하위 바이트를 결합하여 반환
 }

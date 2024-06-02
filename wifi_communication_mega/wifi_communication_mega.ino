@@ -1,4 +1,5 @@
 #include "WiFiS3.h"
+void Transmit_to_Mega(int);
 
 char ssid[] = "Vendingmachine";
 char pass[] = "91046116";       
@@ -75,12 +76,12 @@ void webServer() {
               cost = 500;
               Serial.println("Cost 값을 500로 설정 (500 Won)");
               Serial.println(cost);
-              Serial1.println(cost); // Mega로 전송
+              Transmit_to_Mega(cost); // Mega로 전송
             } else if (header.indexOf("GET /1000") >= 0) {
               cost = 1000;
               Serial.println("Cost 값을 1000로 설정 (1000 Won)");
               Serial.println(cost);
-              Serial1.println(cost); // Mega로 전송
+              Transmit_to_Mega(cost); // Mega로 전송
             }
 
             client.println("<!DOCTYPE html><html>");
@@ -124,4 +125,9 @@ void printWifiStatus() {
   Serial.println(" dBm");
   Serial.print("Now open this URL on your browser --> http://");
   Serial.println(ip);
+}
+
+void Transmit_to_Mega(int cost) {
+  Serial1.write((cost >> 8) & 0xFF); // Send high byte
+  Serial1.write(cost & 0xFF); // Send low byte
 }
