@@ -11,7 +11,7 @@ void set_offset(long);
 void playMelody(void);
 
 const int LOADCELL_DOUT_PIN = 53;
-const int LOADCELL_SCK_PIN = 50;
+const int LOADCELL_SCK_PIN = 52;
 
 #define PORTE_IRSENSOR 4      // IR Sensor는 PORTE의 4번 핀
 #define EXTERNAL_INT0 0 // INT0은 PORTD의 0번핀 노란색
@@ -24,7 +24,12 @@ const int LOADCELL_SCK_PIN = 50;
 #define PULSE_PIN2 2 // PULSE_PIN2은 PORTA의 2번핀
 #define PULSE_PIN3 3 // PULSE_PIN3은 PORTA의 3번핀
 #define OC2B       0x40 //Piezo 부저 PWM 출력 핀
-#define NUM_FREQ   14
+#define NUM_FREQ   7
+
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 int Number = 0;
 bool DiffNum = false;
@@ -45,13 +50,6 @@ const float frequencies[NUM_FREQ] = {
   329.63,  // E4
   329.63,  // E4
   329.63,  // E4
-  293.66,  // D4
-  293.66,  // D4
-  293.66,  // D4
-  329.63,  // E4
-  329.63,  // E4
-  329.63,  // E4
-  329.63   // E4
 };
 
 uint8_t freq_count = 0;
@@ -105,6 +103,11 @@ void setup() {
   float freq_target = frequencies[freq_count];
   OCR2A = F_CPU / 256 / freq_target - 1;
   OCR2B = OCR2A / 2;
+
+  // LCD Setup
+  lcd.init();
+  lcd.backlight();
+  lcd.print("INSERT COIN");
 
 }
 
@@ -175,6 +178,7 @@ void loop() {
   // 100원짜리 5개
   if ((Number == 5) && (weight > 19.0) && (weight < 21.0)) {
     cost = 500;
+
   } 
 
   // 500원짜리 2개
@@ -194,15 +198,24 @@ void loop() {
 
   switch (cost) {
     case 0:     // LCD "INSERT COIN"
+      lcd.clear();
+      lcd.print("INSERT COIN");
+      delay(50);
       EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT0 ~ INT3 INTERRUPT DISABLE
       break;
 
     case 500:
-     EIMSK |= (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT2 ~ INT3 INTERRUPT ENABLE
-     change = 0;
-     break;
+      lcd.clear();
+      lcd.print("PRESS THE BUTTON");
+      delay(50);      
+      EIMSK |= (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT2 ~ INT3 INTERRUPT ENABLE
+      change = 0;
+      break;
 
     case 1000:   // LCD "MAX COIN"
+      lcd.clear();
+      lcd.print("MAX COIN");
+      delay(50);
       EIMSK |= (1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT0 ~ INT3 INTERRUPT ENABLE
       break;
   }
