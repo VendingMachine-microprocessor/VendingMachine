@@ -10,8 +10,8 @@ void tare(unsigned char);
 void set_offset(long);
 void playMelody(void);
 
-const int LOADCELL_DOUT_PIN = 53;
-const int LOADCELL_SCK_PIN = 52;
+#define LOADCELL_DOUT_PIN  0 // DOUT은 PORTB의 0번핀
+#define LOADCELL_SCK_PIN 1  // SCK은 PORTB의 1번핀
 
 #define PORTE_IRSENSOR 4      // IR Sensor는 PORTE의 4번 핀
 #define EXTERNAL_INT0 0 // INT0은 PORTD의 0번핀 노란색
@@ -411,14 +411,15 @@ ISR(INT3_vect){
 
 // pinMode 설정
 void digital_pin_init(void) {
-  pinMode(LOADCELL_DOUT_PIN, INPUT);
-  pinMode(LOADCELL_SCK_PIN, OUTPUT);
+  DDRB &= ~(1 << LOADCELL_DOUT_PIN); //pinMode(LOADCELL_DOUT_PIN, INPUT);
+  DDRB |= (1 << LOADCELL_SCK_PIN);   //pinMode(LOADCELL_SCK_PIN, OUTPUT);
 }
 
 // CONVERSION을 하기 위한 조건 DOUT=LOW -> CONVERSION ENABLE
 void waiting (void) {
   while (1) {
-    if(digitalRead(LOADCELL_DOUT_PIN) == LOW) break;
+    bool pinValue = PINB & (1 << LOADCELL_DOUT_PIN);
+    if(pinValue == false) break;   //digitalRead(LOADCELL_DOUT_PIN) == LOW
   }
 }
 
@@ -427,25 +428,28 @@ void waiting (void) {
 // Gain=128: SCK HIGH -> LOW --> 1DATA 24DATA(analog data -> digital data) + 25th DATA
 long read(void) {
   waiting();  // DOUT이 LOW상태가 될 때까지 기다리는 함수
-  noInterrupts(); // 아두이노 인터럽트를 비활성화(데이터 수신할 때 방해 가능성 있음)
+  SREG &= ~(1 << SREG_I); // noInterrupts();  아두이노 인터럽트를 비활성화(데이터 수신할 때 방해 가능성 있음)
   unsigned long real_data = 0;  // 실제 DOUT에서 받은 DATA가 저장되는 변수
 
   for(int i = 0; i < 24; i++) {   // 총 24번 반복(0~23) 24Bits의 데이터를 받기 위함
-    digitalWrite(LOADCELL_SCK_PIN, HIGH);      // SCK를 HIGH상태로 만들어 CLOCK발생 준비
+    PORTB |= (1 << LOADCELL_SCK_PIN);  // digitalWrite(LOADCELL_SCK_PIN, HIGH);  SCK를 HIGH상태로 만들어 CLOCK발생 준비
     delayMicroseconds(1);         // SCK가 적어도 0.1us동안 HIGH상태를 유지해야 해서 1us 기다림 (또한 DOUT의 상태가 변하기까지 0.1us 기다려야함)
 
-    real_data |= (unsigned long)digitalRead(LOADCELL_DOUT_PIN) << (23 - i);  // DOUT의 상태를 읽어 real_data의 23번 비트부터 0번 비트까지 채움
-    digitalWrite(LOADCELL_SCK_PIN, LOW);                     // SCK를 LOW상태로 만들어 CLOCK발생
+    // DOUT의 상태를 읽어 real_data의 23번 비트부터 0번 비트까지 채움
+    bool Dout_Value = PINB & (1 << LOADCELL_DOUT_PIN);
+    real_data |= (unsigned long) Dout_Value << (24 - i); 
+
+    PORTB &= ~(1 << LOADCELL_SCK_PIN);            //  digitalWrite(LOADCELL_SCK_PIN, LOW); SCK를 LOW상태로 만들어 CLOCK발생
     delayMicroseconds(1);                       // SCK가 적어도 0.2us동안 LOW상태를 유지해야 해서 1us 기다림
   }
   
   // Gain=128이기 때문에 추가로 1clock 발생시켜야 함
-  digitalWrite(LOADCELL_SCK_PIN, HIGH);
+  PORTB |= (1 << LOADCELL_SCK_PIN);   // digitalWrite(LOADCELL_SCK_PIN, HIGH);
   delayMicroseconds(1);
-  digitalWrite(LOADCELL_SCK_PIN, LOW);
+  PORTB &= ~(1 << LOADCELL_SCK_PIN);   // digitalWrite(LOADCELL_SCK_PIN, LOW);
   delayMicroseconds(1);
 
-  interrupts();                  // 모든 데이터를 수신했기에, 다시 아두이노의 인터럽트 활성화
+  SREG |= (1 << SREG_I);              // interrupts();  모든 데이터를 수신했기에, 다시 아두이노의 인터럽트 활성화
   
   // Convert 24-bit value to signed 32-bit integer
   if (real_data & 0x800000) {
