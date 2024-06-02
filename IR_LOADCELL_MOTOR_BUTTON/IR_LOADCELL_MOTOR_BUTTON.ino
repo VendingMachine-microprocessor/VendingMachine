@@ -12,6 +12,8 @@ void playMelody(void);
 void USART_init(void);
 int Receive_from_R4(int);
 
+
+
 #define LOADCELL_DOUT_PIN  0 // DOUT은 PORTB의 0번핀
 #define LOADCELL_SCK_PIN 1  // SCK은 PORTB의 1번핀
 
@@ -28,13 +30,13 @@ int Receive_from_R4(int);
 #define OC2B       0x40 //Piezo 부저 PWM 출력 핀
 #define NUM_FREQ   7
 
-#include <Wire.h> 
-#include <LiquidCrystal_I2C.h>
+// #include <Wire.h> 
+// #include <LiquidCrystal_I2C.h>
 
 #define FOSC 16000000
 #define BAUD 9600
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 int Number = 0;
 bool DiffNum = false;
@@ -63,6 +65,11 @@ void setup() {
   DDRE &= ~(1 << PORTE_IRSENSOR);   // IR 센서를 input으로 설정
   DDRD &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); //INT0 ~ INT3을 INPUT으로 설정
   EICRA |= 0xFF; // INT0 ~ INT3을 RISING_EDGE INTERRUPT모드로 설정
+
+
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(7, OUTPUT);
 
   // PULSE_PIN을 출력으로 설정
   DDRA |= (1 << PULSE_PIN0) | (1 << PULSE_PIN1) | (1 << PULSE_PIN2) | (1 << PULSE_PIN3);
@@ -109,14 +116,15 @@ void setup() {
   OCR2A = F_CPU / 256 / freq_target - 1;
   OCR2B = OCR2A / 2;
 
-  // LCD Setup
-  lcd.init();
-  lcd.backlight();
-  lcd.print("INSERT COIN");
+  // // LCD Setup
+  // lcd.init();
+  // lcd.backlight();
+  // lcd.print("INSERT COIN");
 
 }
 
 void loop() {
+
   // R4로부터 cost 값을 수신
   if (UCSR2A & (1 << RXC2)) { // 데이터가 준비되었을 때만 읽기
     int receivedCost = Receive_from_R4();
@@ -128,6 +136,8 @@ void loop() {
       Serial.println(cost);
     }
   }
+
+
 
 
   int irVal = PINE & (1<<PORTE_IRSENSOR);  // 센서값 읽어옴
@@ -170,7 +180,7 @@ void loop() {
 
     //  ADC 휴식모드
     digitalWrite(LOADCELL_SCK_PIN, LOW);
-	  digitalWrite(LOADCELL_SCK_PIN, HIGH);
+     digitalWrite(LOADCELL_SCK_PIN, HIGH);
     delay(10);
     digitalWrite(LOADCELL_SCK_PIN, LOW);
     DiffNum = false;
@@ -203,27 +213,56 @@ void loop() {
     cost = 1000;
   } 
 
+
   switch (cost) {
     case 0:     // LCD "INSERT COIN"
-      lcd.clear();
-      lcd.print("INSERT COIN");
-      delay(50);
+      // lcd.clear();
+      // lcd.print("INSERT COIN");
+      // delay(50);
+      digitalWrite(5,HIGH);
+      digitalWrite(6,LOW);
+      digitalWrite(7,LOW);
+      PORTK &= ~((0x02)|(0x04));
       EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT0 ~ INT3 INTERRUPT DISABLE
+      Serial.print("K0: ");
+      Serial.println(digitalRead(5));
+      Serial.print("K1: ");
+      Serial.println(digitalRead(6));
+      Serial.print("K2: ");
+      Serial.println(digitalRead(7));      
       break;
 
     case 500:
-      lcd.clear();
-      lcd.print("PRESS THE BUTTON");
-      delay(50);      
+      // lcd.clear();
+      // lcd.print("PRESS THE BUTTON");
+      // delay(50);    
+      digitalWrite(5,LOW);
+      digitalWrite(6,HIGH);
+      digitalWrite(7,LOW);
       EIMSK |= (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT2 ~ INT3 INTERRUPT ENABLE
       change = 0;
+      Serial.print("K0: ");
+      Serial.println(digitalRead(5));
+      Serial.print("K1: ");
+      Serial.println(digitalRead(6));
+      Serial.print("K2: ");
+      Serial.println(digitalRead(7));  
       break;
 
     case 1000:   // LCD "MAX COIN"
-      lcd.clear();
-      lcd.print("MAX COIN");
-      delay(50);
+      // lcd.clear();
+      // lcd.print("MAX COIN");
+      // delay(50);
+      digitalWrite(5,LOW);
+      digitalWrite(6,LOW);
+      digitalWrite(7,HIGH);
       EIMSK |= (1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT0 ~ INT3 INTERRUPT ENABLE
+      Serial.print("K0: ");
+      Serial.println(digitalRead(5));
+      Serial.print("K1: ");
+      Serial.println(digitalRead(6));
+      Serial.print("K2: ");
+      Serial.println(digitalRead(7));  
       break;
   }
 
