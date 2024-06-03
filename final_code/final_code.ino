@@ -256,6 +256,7 @@ void loop() {
       digitalWrite(5,LOW);
       digitalWrite(6,HIGH);
       digitalWrite(7,LOW);
+      EIFR |= (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);
       EIMSK |= (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT2 ~ INT3 INTERRUPT ENABLE
       EICRA |= 0xFF;
       change = 0;
@@ -274,6 +275,7 @@ void loop() {
       digitalWrite(5,LOW);
       digitalWrite(6,LOW);
       digitalWrite(7,HIGH);
+      EIFR |= (1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);
       EIMSK |= (1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT0 ~ INT3 INTERRUPT ENABLE
       EICRA |= 0xFF;
       // Serial.print("K0: ");
@@ -334,7 +336,7 @@ void loop() {
       INT1_flag = 0;
     }
 
-    if (INT2 == 1){
+    if (INT2_flag == 1){
     // 모터 회전
     // 반시계 방향으로 360도 회전 (2ms 펄스)
       for (int i = 0; i < 380 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
@@ -393,31 +395,38 @@ void loop() {
 
 ISR(INT0_vect){
   EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT0 ~ INT3 INTERRUPT DISABLE
-  
-  motor_flag = 1;
-  piezo_flag = 1;
+  if (cost > 0){
+    motor_flag = 1;
+    piezo_flag = 1;
 
-  INT0_flag = 1;
-  interruptTriggered = true;
-  DiffNum = true;
-  Number = 0;
-  cost = 0;
+    INT0_flag = 1;
+    interruptTriggered = true;
+    DiffNum = true;
+    Number = 0;
+    cost = 0;
+  }
+  EIFR |= (1 << EXTERNAL_INT0);
+  EIMSK |= (1 << EXTERNAL_INT0);
 }
 
 ISR(INT1_vect){
   EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT0 ~ INT3 INTERRUPT DISABLE
-  
-  motor_flag = 1;
-  piezo_flag = 1;
+  if (cost > 0){
+    motor_flag = 1;
+    piezo_flag = 1;
 
-  INT1_flag = 1;
-  interruptTriggered = true;
-  DiffNum = true;
-  Number = 0;
-  cost = 0;
+    INT1_flag = 1;
+    interruptTriggered = true;
+    DiffNum = true;
+    Number = 0;
+    cost = 0;
+  }
+  EIFR |= (1 << EXTERNAL_INT1);
+  EIMSK |= (1 << EXTERNAL_INT1);
 }
 
 ISR(INT2_vect){
+  EIMSK &= ~(1 << EXTERNAL_INT2);
   if (cost > 0) {
     if (cost == 1000){
       Number = 1;
@@ -429,6 +438,7 @@ ISR(INT2_vect){
     INT2_flag = 1;
     EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1)); // INT0 ~ INT1 INTERRUPT DISABLE 
   }
+
 
   if (change != 1){
     piezo_flag = 1;
@@ -441,9 +451,12 @@ ISR(INT2_vect){
     cost = 0;
     change = 0;
   }
+  EIFR |= (1 << EXTERNAL_INT2);
+  EIMSK |= (1 << EXTERNAL_INT2);
 }
 
 ISR(INT3_vect){
+  EIMSK &= ~(1 << EXTERNAL_INT3);
   if (cost > 0) {
     if (cost == 1000){
       Number = 1;
@@ -465,6 +478,8 @@ ISR(INT3_vect){
     Number = 0;
     cost = 0;
   }
+  EIFR |= (1 << EXTERNAL_INT3);
+  EIMSK |= (1 << EXTERNAL_INT3);
 }
 
 
