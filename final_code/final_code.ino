@@ -12,8 +12,6 @@ void playMelody(void);
 void USART_init(void);
 int Receive_from_R4(int);
 
-
-
 #define LOADCELL_DOUT_PIN  0 // DOUT은 PORTB의 0번핀
 #define LOADCELL_SCK_PIN 1  // SCK은 PORTB의 1번핀
 
@@ -30,13 +28,12 @@ int Receive_from_R4(int);
 #define OC2B       0x40 //Piezo 부저 PWM 출력 핀
 #define NUM_FREQ   7
 
-// #include <Wire.h> 
-// #include <LiquidCrystal_I2C.h>
+#define MEGA_to_UNO0 3 // MEGA와 UNO연결 1번핀 PORTE의 3번핀
+#define MEGA_to_UNO1 3 // MEGA와 UNO연결 2번핀 PORTH의 3번핀
+#define MEGA_to_UNO2 4 // MEGA와 UNO연결 3번핀 PORTH의 4번핀
 
 #define FOSC 16000000
 #define BAUD 9600
-
-// LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 int Number = 0;
 bool DiffNum = false;
@@ -73,10 +70,9 @@ void setup() {
   DDRD &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); //INT0 ~ INT3을 INPUT으로 설정
   EICRA |= 0xFF; // INT0 ~ INT3을 RISING_EDGE INTERRUPT모드로 설정
 
-
-  pinMode(5, OUTPUT);
-  pinMode(6, OUTPUT);
-  pinMode(7, OUTPUT);
+  DDRE |= (1 << MEGA_to_UNO0);  //pinMode(5, OUTPUT);
+  DDRH |= (1 << MEGA_to_UNO1);  //pinMode(6, OUTPUT);
+  DDRH |= (1 << MEGA_to_UNO2);  //pinMode(7, OUTPUT);
 
   // PULSE_PIN을 출력으로 설정
   DDRA |= (1 << PULSE_PIN0) | (1 << PULSE_PIN1) | (1 << PULSE_PIN2) | (1 << PULSE_PIN3);
@@ -122,24 +118,19 @@ void setup() {
   float freq_target = frequencies[freq_count];
   OCR2A = F_CPU / 256 / freq_target - 1;
   OCR2B = OCR2A / 2;
-
-  // // LCD Setup
-  // lcd.init();
-  // lcd.backlight();
-  // lcd.print("INSERT COIN");
-
 }
 
 void loop() {
 
-  Serial.print("INT0: ");
-  Serial.println(digitalRead(21));
-  Serial.print("INT1: ");
-  Serial.println(digitalRead(20));
-  Serial.print("INT2: ");
-  Serial.println(digitalRead(19)); 
-  Serial.print("INT3: ");
-  Serial.println(digitalRead(18)); 
+  // Debuging INT0~INT3
+  // Serial.print("INT0: ");
+  // Serial.println(digitalRead(21));
+  // Serial.print("INT1: ");
+  // Serial.println(digitalRead(20));
+  // Serial.print("INT2: ");
+  // Serial.println(digitalRead(19)); 
+  // Serial.print("INT3: ");
+  // Serial.println(digitalRead(18)); 
 
 
   // R4로부터 cost 값을 수신
@@ -147,15 +138,13 @@ void loop() {
     int receivedCost = Receive_from_R4();
     Serial.print("Received cost value: ");
     Serial.println(receivedCost); // 수신된 값을 출력
+
     if (receivedCost != 0) { // 0이 아닌 값만 수신하여 cost를 업데이트
       cost = receivedCost; // R4에서 받은 cost 값을 설정
       Serial.print("Cost updated to: ");
       Serial.println(cost);
     }
   }
-
-
-
 
   int irVal = PINE & (1<<PORTE_IRSENSOR);  // 센서값 읽어옴
 
@@ -184,22 +173,24 @@ void loop() {
     Serial.print("one reading:\t");
     Serial.print(get_units(1), 1);
     difference = get_units(1) - current_weight;
+
     if ((difference < 1.0) && (difference > -1.0)) {
       weight = 0.0;  // 현재 무게를 읽어 weight 변수에 저장
     }
     else{
       weight = get_units(1) - current_weight;
    }
+
     Serial.print("\t weight:\t");
     Serial.print("\t| average:\t");
     Serial.println(get_units(1), 1);
     Serial.print(weight, 1);
 
     //  ADC 휴식모드
-    digitalWrite(LOADCELL_SCK_PIN, LOW);
-    digitalWrite(LOADCELL_SCK_PIN, HIGH);
+    PORTB &= ~(1 << LOADCELL_SCK_PIN);  //digitalWrite(LOADCELL_SCK_PIN, LOW);
+    PORTB |= (1 << LOADCELL_SCK_PIN);   //digitalWrite(LOADCELL_SCK_PIN, HIGH);
     delay(10);
-    digitalWrite(LOADCELL_SCK_PIN, LOW);
+    PORTB &= ~(1 << LOADCELL_SCK_PIN);  //digitalWrite(LOADCELL_SCK_PIN, LOW);
     DiffNum = false;
   }
 
@@ -212,7 +203,6 @@ void loop() {
   // 100원짜리 5개
   if ((Number == 5) && (weight > 19.0) && (weight < 21.0)) {
     cost = 500;
-
   } 
 
   // 500원짜리 2개
@@ -232,68 +222,72 @@ void loop() {
 
 
   switch (cost) {
-    case 0:     // LCD "INSERT COIN"
-      // lcd.clear();
-      // lcd.print("INSERT COIN");
-      // delay(50);
-      digitalWrite(5,HIGH);
-      digitalWrite(6,LOW);
-      digitalWrite(7,LOW);
-      PORTK &= ~((0x02)|(0x04));
+    case 0: 
+      PORTE |= (1 << MEGA_to_UNO0); //digitalWrite(5,HIGH);
+      PORTH &= ~(1 << MEGA_to_UNO1); //digitalWrite(6,LOW);
+      PORTH &= ~(1 << MEGA_to_UNO2); //digitalWrite(7,LOW);
+      
       EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT0 ~ INT3 INTERRUPT DISABLE
-      // Serial.print("K0: ");
+      
+      // Debuging PIN5 ~ PIN7
+      // Serial.print("PIN5: ");
       // Serial.println(digitalRead(5));
-      // Serial.print("K1: ");
+      // Serial.print("PIN6: ");
       // Serial.println(digitalRead(6));
-      // Serial.print("K2: ");
+      // Serial.print("PIN7: ");
       // Serial.println(digitalRead(7));      
       break;
 
-    case 500:
-      // lcd.clear();
-      // lcd.print("PRESS THE BUTTON");
-      // delay(50);    
-      digitalWrite(5,LOW);
-      digitalWrite(6,HIGH);
-      digitalWrite(7,LOW);
-      EIFR |= (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);
+    case 500:  
+      PORTE &= ~(1 << MEGA_to_UNO0); //digitalWrite(5,LOW);
+      PORTH |= (1 << MEGA_to_UNO1);  //digitalWrite(6,HIGH);
+      PORTH &= ~(1 << MEGA_to_UNO2); //digitalWrite(7,LOW);
+
+      // EIFR - External Interrupt Flag Register 을 1로 설정해 플래그를 클리어하여, 이후에 새로운 인터럽트가 발생할 수 있게 설정
+      // cost가 0일때 미리 버튼을 누르고 cost가 500이나 1000으로 변했을 때 미리 눌러 놓은 버튼의 인터럽트가 발생하는 문제를 해결
+      EIFR |= (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);    
       EIMSK |= (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT2 ~ INT3 INTERRUPT ENABLE
-      EICRA |= 0xFF;
-      change = 0;
-      // Serial.print("K0: ");
+      EICRA |= 0xFF;  // Rising Edge
+      change = 0; 
+
+      // Debuging PIN5 ~ PIN7
+      // Serial.print("PIN5: ");
       // Serial.println(digitalRead(5));
-      // Serial.print("K1: ");
+      // Serial.print("PIN6: ");
       // Serial.println(digitalRead(6));
-      // Serial.print("K2: ");
-      // Serial.println(digitalRead(7));  
+      // Serial.print("PIN7: ");
+      // Serial.println(digitalRead(7));   
       break;
 
-    case 1000:   // LCD "MAX COIN"
-      // lcd.clear();
-      // lcd.print("MAX COIN");
-      // delay(50);
-      digitalWrite(5,LOW);
-      digitalWrite(6,LOW);
-      digitalWrite(7,HIGH);
+    case 1000:   
+      PORTE &= ~(1 << MEGA_to_UNO0);  //digitalWrite(5,LOW);
+      PORTH &= ~(1 << MEGA_to_UNO1);  //digitalWrite(6,LOW);
+      PORTH |=  (1 << MEGA_to_UNO2);  //digitalWrite(7,HIGH);
+
+      // EIFR - External Interrupt Flag Register 을 1로 설정해 플래그를 클리어하여, 이후에 새로운 인터럽트가 발생할 수 있게 설정
+      // cost가 0일때 미리 버튼을 누르고 cost가 500이나 1000으로 변했을 때 미리 눌러 놓은 버튼의 인터럽트가 발생하는 문제를 해결
       EIFR |= (1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);
       EIMSK |= (1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3);   // INT0 ~ INT3 INTERRUPT ENABLE
       EICRA |= 0xFF;
-      // Serial.print("K0: ");
+
+      // Debuging PIN5 ~ PIN7
+      // Serial.print("PIN5: ");
       // Serial.println(digitalRead(5));
-      // Serial.print("K1: ");
+      // Serial.print("PIN6: ");
       // Serial.println(digitalRead(6));
-      // Serial.print("K2: ");
-      // Serial.println(digitalRead(7));  
+      // Serial.print("PIN7: ");
+      // Serial.println(digitalRead(7));   
       break;
   }
 
   Serial.print("Number");
   Serial.println(Number);  // Number 값 출력
   Serial.print("cost: ");
-  Serial.println(cost);
+  Serial.println(cost);    // cost 값 출력
 
+  // motor_flag가 0이 아닐 시(즉 인터럽트가 발생 했을 시) 수행
   while (motor_flag != 0){
-    if (INT0_flag == 1){
+    if (INT0_flag == 1){          //  INT0 인터럽트 발생
     // 모터 회전
     // 반시계 방향으로 360도 회전 (2ms 펄스)
       for (int i = 0; i < 380 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
@@ -310,12 +304,12 @@ void loop() {
         PORTA &= ~(1 << PULSE_PIN0);
         delayMicroseconds(18500); // 18.5ms 대기 (총 주기 20ms)
 
-        motor_flag = 0;
-        INT0_flag = 0;
+        motor_flag = 0;   // motor_flag 초기화
+        INT0_flag = 0;    // INT0_flag 초기화
       }
     }
 
-    if (INT1_flag == 1){
+    if (INT1_flag == 1){            //  INT1 인터럽트 발생
     // 모터 회전
     // 반시계 방향으로 360도 회전 (2ms 펄스)
       for (int i = 0; i < 380 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
@@ -332,14 +326,14 @@ void loop() {
         PORTA &= ~(1 << PULSE_PIN1);
         delayMicroseconds(18500); // 18.5ms 대기 (총 주기 20ms)
       }
-      motor_flag = 0;
-      INT1_flag = 0;
+      motor_flag = 0;          // motor_flag 초기화
+      INT1_flag = 0;           // INT1_flag 초기화
     }
 
-    if (INT2_flag == 1){
+    if (INT2_flag == 1){              // INT2 인터럽트 발생
     // 모터 회전
     // 반시계 방향으로 360도 회전 (2ms 펄스)
-      for (int i = 0; i < 380 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
+      for (int i = 0; i < 450 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
         PORTA |= (1 << PULSE_PIN2);
         delayMicroseconds(2000); // 2ms 펄스
         PORTA &= ~(1 << PULSE_PIN2);
@@ -353,14 +347,14 @@ void loop() {
         PORTA &= ~(1 << PULSE_PIN2);
         delayMicroseconds(18500); // 18.5ms 대기 (총 주기 20ms)
       }
-      motor_flag = 0;
-      INT2_flag = 0;
+      motor_flag = 0;       // motor_flag 초기화
+      INT2_flag = 0;        // INT2_flag 초기화
     }
 
-    if (INT3_flag == 1){
+    if (INT3_flag == 1){            // INT3 인터럽트 발생
     // 모터 회전
     // 반시계 방향으로 360도 회전 (2ms 펄스)
-      for (int i = 0; i < 380 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
+      for (int i = 0; i < 450 ; i++) {  // 스프링을 달게 되면 370의 값을 증가시켜야 할 수도 있음. -> 실험적으로 수정해보기
         PORTA |= (1 << PULSE_PIN3);
         delayMicroseconds(2000); // 2ms 펄스
         PORTA &= ~(1 << PULSE_PIN3);
@@ -374,53 +368,49 @@ void loop() {
         PORTA &= ~(1 << PULSE_PIN3);
         delayMicroseconds(18500); // 18.5ms 대기 (총 주기 20ms)
       }
-      motor_flag = 0;
-      INT3_flag = 0;
+      motor_flag = 0;         // motor_flag 초기화
+      INT3_flag = 0;          // INT3_flag 초기화
     }
-
 
     if (piezo_flag == 1) {
     //피에조 부저
       playMelody();
-      piezo_flag = 0;
+      piezo_flag = 0;         // piezo_flag 초기화
     }
   }
 }
 
-// // 인터럽트 서비스 루틴
-// ISR(INT0_vect){
-//   // 인터럽트가 발생했을 때의 동작 정의
-//   interruptTriggered = true;  // 인터럽트 발생 플래그 설정
-// }
-
+// 인터럽트 서비스 루틴
 ISR(INT0_vect){
   EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT0 ~ INT3 INTERRUPT DISABLE
   if (cost > 0){
-    motor_flag = 1;
-    piezo_flag = 1;
+    motor_flag = 1;         // motor_flag 1로 설정하여 모터 회전
+    piezo_flag = 1;         // piezo_flag 1로 설정하여 피에조로 종료음 표시
 
-    INT0_flag = 1;
-    interruptTriggered = true;
-    DiffNum = true;
-    Number = 0;
-    cost = 0;
+    INT0_flag = 1;          // INT0_flag 1로 설정하여 1번 버튼에 해당하는 모터를 회전 가능하게 함
+    interruptTriggered = true;         // interruptTriggered = true로 설정해 로드셀의 weight 초기화
+    DiffNum = true;                    // DiffNum = true로 설정해 무게 측정 가능하게 함
+    Number = 0;   // Number 초기화
+    cost = 0;     // cost 초기화
   }
-  EIFR |= (1 << EXTERNAL_INT0);
+  // INTF0 비트를 1로 설정하여 INT0의 플래그를 클리어-->인터럽트가 다시 트리거될 수 있도록 설정
+  EIFR |= (1 << EXTERNAL_INT0);   
   EIMSK |= (1 << EXTERNAL_INT0);
 }
 
 ISR(INT1_vect){
   EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1) | (1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT0 ~ INT3 INTERRUPT DISABLE
   if (cost > 0){
-    motor_flag = 1;
-    piezo_flag = 1;
+    motor_flag = 1;         // motor_flag 1로 설정하여 모터 회전
+    piezo_flag = 1;         // piezo_flag 1로 설정하여 피에조로 종료음 표시
 
-    INT1_flag = 1;
-    interruptTriggered = true;
-    DiffNum = true;
+    INT1_flag = 1;          // INT1_flag 1로 설정하여 2번 버튼에 해당하는 모터를 회전 가능하게 함
+    interruptTriggered = true;  
+    DiffNum = true;              
     Number = 0;
     cost = 0;
   }
+  // INTF1 비트를 1로 설정하여 INT1의 플래그를 클리어-->인터럽트가 다시 트리거될 수 있도록 설정
   EIFR |= (1 << EXTERNAL_INT1);
   EIMSK |= (1 << EXTERNAL_INT1);
 }
@@ -434,23 +424,24 @@ ISR(INT2_vect){
       change = 1;
     }
     
-    motor_flag = 1;
-    INT2_flag = 1;
+    motor_flag = 1;             // motor_flag 1로 설정하여 모터 회전
+    INT2_flag = 1;              // INT2_flag 1로 설정하여 3번 버튼에 해당하는 모터를 회전 가능하게 함
     EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1)); // INT0 ~ INT1 INTERRUPT DISABLE 
   }
 
 
   if (change != 1){
-    piezo_flag = 1;
+    piezo_flag = 1;         // piezo_flag 1로 설정하여 피에조로 종료음 표시
 
     EIMSK &= ~((1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT2 ~ INT3 INTERRUPT DISABLE
     interruptTriggered = true;
-    INT2_flag = 1;
+    INT2_flag = 1;          // INT2_flag 1로 설정하여 3번 버튼에 해당하는 모터를 회전 가능하게 함
     DiffNum = true;
     Number = 0;
     cost = 0;
     change = 0;
   }
+  // INTF2 비트를 1로 설정하여 INT2의 플래그를 클리어-->인터럽트가 다시 트리거될 수 있도록 설정
   EIFR |= (1 << EXTERNAL_INT2);
   EIMSK |= (1 << EXTERNAL_INT2);
 }
@@ -464,25 +455,24 @@ ISR(INT3_vect){
       change = 1;
     }
     
-    motor_flag = 1;
-    INT3_flag = 1;
+    motor_flag = 1;             // motor_flag 1로 설정하여 모터 회전
+    INT3_flag = 1;              // INT3_flag 1로 설정하여 4번 버튼에 해당하는 모터를 회전 가능하게 함
     EIMSK &= ~((1 << EXTERNAL_INT0) | (1 << EXTERNAL_INT1)); // INT0 ~ INT1 INTERRUPT DISABLE 
   }
 
   if (change != 1){
-    piezo_flag = 1;
-    INT3_flag = 1;
+    piezo_flag = 1;         // piezo_flag 1로 설정하여 피에조로 종료음 표시
+    INT3_flag = 1;          // INT3_flag 1로 설정하여 4번 버튼에 해당하는 모터를 회전 가능하게 함
     EIMSK &= ~((1 << EXTERNAL_INT2) | (1 << EXTERNAL_INT3)); // INT2 ~ INT3 INTERRUPT DISABLE
     interruptTriggered = true;
     DiffNum = true;
     Number = 0;
     cost = 0;
   }
+  // INTF3 비트를 1로 설정하여 INT3의 플래그를 클리어-->인터럽트가 다시 트리거될 수 있도록 설정
   EIFR |= (1 << EXTERNAL_INT3);
   EIMSK |= (1 << EXTERNAL_INT3);
 }
-
-
 
 // pinMode 설정
 void digital_pin_init(void) {
